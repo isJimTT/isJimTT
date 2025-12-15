@@ -22,7 +22,7 @@
 
   
 
-  <title>关于我 | 积木小站</title>
+  <title>前端序列化的秘密 | 积木小站</title>
 
   
 
@@ -44,7 +44,7 @@
   <div class="root-container">
     
 <!-- header container -->
-<header class="header-container">
+<header class="header-container post">
   
     
     <div class="post-image" style="background-image: url(/bg.png)"></div>
@@ -93,42 +93,129 @@
 
   
   
-
-  
-  
     <div class="header-content">
-      <div class="post-text layout-block layout-padding">
-        <h1 class="title-wrap">关于我</h1>
-        
+      <div class="post-text layout-block">
+        <div class="layout-margin">
+          <h1 class="title-wrap">前端序列化的秘密</h1>
+          <h2 class="title-sub-wrap">
+            <strong>jimu</strong>
+            <span>发布于</span>
+            <time  class="article-date" datetime="2025-12-15T06:02:55.000Z" itemprop="datePublished">2025-12-15</time>
+          </h2>
+          
+          
+            <h2 id="/2025/12/15/%E5%89%8D%E7%AB%AF%E5%BA%8F%E5%88%97%E5%8C%96%E7%9A%84%E7%A7%98%E5%AF%86/" class="title-sub-wrap leancloud_visitors" data-flag-title="前端序列化的秘密">
+              <em>文章访问量</em>
+              <i class="leancloud-visitors-count"></i>
+            </h2>
+          
+          <ul class="wrap-list dark">
+  
+</ul>
+          <ul class="wrap-list dark">
+  
+</ul>
+        </div>
       </div>
     </div>
+  
+
+  
   
   
 </header>
 
-    <!-- 分页(其他自定义页面) -->
+    <!-- 文章 -->
 
-<!-- 自定义页面 -->
-
+<!-- 文章内容 -->
 <div class="body-container">
   <article class="content-container layout-block post-container">
     <div class="article-info">
       
+      
+      
+      
       <section class="article-entry markdown-body layout-margin content-padding--large soft-size--large soft-style--box">
-        <p>hello，我是 <strong>积木</strong> 👋<br>这是我的个人博客，记录一些学习与生活点滴。  </p>
-<ul>
-<li>💻 前端开发者 </li>
-<li>🎵 R&amp;B爱好者</li>
-<li>联系方式V：Jim__TT</li>
-</ul>
+        <h1 id="背景："><a href="#背景：" class="headerlink" title="背景："></a><strong>背景：</strong></h1><p>起源于一个前后端Json交互的场景，后端会返回5w+长度的json字符；前端渲染时会有明显卡顿；基于这个场景，来深入研究一下，一直在用的JSON.parse()，里面到底有什么秘密。</p>
+<h1 id="序列化"><a href="#序列化" class="headerlink" title="序列化"></a><strong>序列化</strong></h1><p><strong>定义</strong> ：内存对象 (Heap Object) → 字符串&#x2F;二进制流 (String&#x2F;Byte Stream)。用于传输和存储。</p>
+<p><strong>意义：</strong></p>
+<p><strong>1. 数据传输</strong></p>
+<p><strong>跨语言通信：</strong> 由于语言的不同，前端的 JS 对象后端是无法直接理解的。</p>
+<p><strong>网络协议限制：</strong> HTTP 协议传输的是文本或字节流。</p>
+<p><strong>2. 数据本地存储</strong></p>
+<p>localStorage、sessionStorage、cookie本质上只能存储<strong>字符串</strong>。所以如果直接存储对象，浏览器会自动调用 <code>.toString()</code>，导致存储结果为 <code>&quot;[object Object]&quot;</code>。</p>
+<p>**3. 深拷贝 (Deep Clone) **</p>
+<p>序列化可以在js中快速简单实现深拷贝</p>
+<h1 id="为什么会卡顿"><a href="#为什么会卡顿" class="headerlink" title="为什么会卡顿"></a>为什么会卡顿</h1><p>这里从两个维度分析：</p>
+<p><strong>Js单线程阻塞</strong> </p>
+<p><code>JSON.parse()</code> 和 <code>JSON.stringify()</code> 都会同步执行，在一次宏任务执行中将会直接阻塞代码执行。那么在此时浏览器将无法响应用户的其他操作，点击、页面重绘等……</p>
+<p><strong>响应式劫持导致大量的响应式递归</strong></p>
+<p>vue框架下，如果把这样的超大数据赋值为响应式，需要递归遍历这个巨大对象的每一个属性，为其添加 <code>Getter/Setter</code>。</p>
+<h2 id="问题一解决：Worker"><a href="#问题一解决：Worker" class="headerlink" title="问题一解决：Worker"></a>问题一解决：Worker</h2><p>直接看一段代码</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// parse.worker.js</span></span><br><span class="line">self.<span class="property">onmessage</span> = <span class="function">(<span class="params">e</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">const</span> rawString = e.<span class="property">data</span>;</span><br><span class="line">  <span class="keyword">const</span> data = <span class="title class_">JSON</span>.<span class="title function_">parse</span>(rawString);</span><br><span class="line">  </span><br><span class="line">  self.<span class="title function_">postMessage</span>(data);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> <span class="title class_">MyWorker</span> <span class="keyword">from</span> <span class="string">&#x27;./parse.worker.js?worker&#x27;</span>; </span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> <span class="title function_">fetchDataOptimized</span> = (<span class="params"></span>) =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> worker = <span class="keyword">new</span> <span class="title class_">MyWorker</span>(); </span><br><span class="line">  </span><br><span class="line">  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="title function_">fetch</span>(<span class="string">&#x27;/api/huge-data&#x27;</span>);</span><br><span class="line">	<span class="keyword">const</span> rawString = <span class="keyword">await</span> res.<span class="title function_">text</span>(); <span class="comment">// 用text去读，json会有大量开销</span></span><br><span class="line"></span><br><span class="line">  worker.<span class="title function_">postMessage</span>(rawString);</span><br><span class="line">  worker.<span class="property">onmessage</span> = <span class="function">(<span class="params">e</span>) =&gt;</span> &#123;</span><br><span class="line">    hugeList.<span class="property">value</span> = e.<span class="property">data</span>;</span><br><span class="line">    worker.<span class="title function_">terminate</span>(); <span class="comment">// 用完销毁</span></span><br><span class="line">  &#125;;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>原理：</strong></p>
+<p>通过使用worker单独开一个浏览器线程，去执行我们解析大数据的耗时任务，通过postMessage通信，最后异步处理好数据后再返回来。</p>
+<p><strong>‘.&#x2F;parse.worker.js?worker’ 解析：</strong></p>
+<p>这是vite对于Worker导入的特殊处理，因为Worker如果像平时的js导入一样，那么他就隶属于主线程下了。Worker原生api new Worker(‘path&#x2F;myWorkeryFile.js’) 其实只是需要一个路径，浏览器用这个路径去向操作系统申请开一个新的线程，然后把这个文件里的代码加载进去跑。</p>
+<p>那么vite在打包时如果遇到了?worker，会做两件事</p>
+<ol>
+<li><strong>独立打包</strong>：识别？worker后，单独打包这个文件（比如 <code>assets/worker-123.js</code>）。</li>
+<li><strong>自动封装</strong>：自动把这个文件的 <strong>URL</strong> 塞进 <code>new Worker()</code> 构造函数里，然后返回一个可以直接 <code>new</code> 的类。</li>
+</ol>
+<p>当然也可以直接用原生api去new，但是这里涉及到相对路径的问题；</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> worker = <span class="keyword">new</span> <span class="title class_">Worker</span>(<span class="string">&#x27;./parse.worker.js&#x27;</span>); <span class="comment">// 新开的浏览器线程会在根目录找相对路径，这里会404</span></span><br><span class="line"><span class="keyword">const</span> worker = <span class="keyword">new</span> <span class="title class_">Worker</span>(<span class="string">&#x27;src/parse.worker.js&#x27;</span>); <span class="comment">// 线上环境没有src，报错</span></span><br></pre></td></tr></table></figure>
+
+<p>只有将parse.worker.js放在public目录下，才可以。vite不会动public里面的任何东西，但是相反的，我们的worker文件里就只能写原生js（不能import、不能用ts……)</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> worker = <span class="keyword">new</span> <span class="title class_">Worker</span>(<span class="string">&#x27;/parse.worker.js&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="问题二解决：shallowRef"><a href="#问题二解决：shallowRef" class="headerlink" title="问题二解决：shallowRef"></a>问题二解决：shallowRef</h2><p><strong>原理：</strong></p>
+<p>通过vue3提供的api，去创建一个浅层的响应式对象，只对对象的.value做响应式监听，对于里面的属性不再做响应式</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> list = <span class="title function_">shallowRef</span>([&#123; <span class="attr">id</span>: <span class="number">1</span>, <span class="attr">name</span>: <span class="string">&#x27;Jimu&#x27;</span> &#125;]);</span><br><span class="line"></span><br><span class="line"><span class="comment">//触发更新</span></span><br><span class="line">list.<span class="property">value</span> = [&#123; <span class="attr">id</span>: <span class="number">2</span>, <span class="attr">name</span>: <span class="string">&#x27;New Data&#x27;</span> &#125;]; </span><br><span class="line"></span><br><span class="line"><span class="comment">// 不触发更新</span></span><br><span class="line">list.<span class="property">value</span>[<span class="number">0</span>].<span class="property">name</span> = <span class="string">&#x27;Change&#x27;</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>那么vue2呢</strong></p>
+<p>答案是可以用一个原生js API Object.freeze；Object.freeze()的本质其实就是将对象属性的描述符的configurable和writable设置为false，然后在vue源码转换响应式对象的时候，会去判断这两个属性，进而判断是否需要绑定响应式。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> &#123;</span><br><span class="line">  <span class="title function_">data</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      <span class="attr">list</span>: []</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">methods</span>: &#123;</span><br><span class="line">    <span class="keyword">async</span> <span class="title function_">loadData</span>(<span class="params"></span>) &#123;</span><br><span class="line">      <span class="keyword">const</span> hugeData = <span class="keyword">await</span> <span class="title function_">fetchHugeJson</span>(); </span><br><span class="line">      <span class="variable language_">this</span>.<span class="property">list</span> = <span class="title class_">Object</span>.<span class="title function_">freeze</span>(hugeData);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
 
       </section>
 
       
       
+        <nav class="article-nav">
+          
+          
+            <div class="article-nav-item layout-padding">
+  <article class="card-container article-nav-card content-padding--primary soft-size--large soft-style--box">
+    
+    <div class="card-text">
+      
+        <a href="/2025/12/03/%E6%B5%85%E8%B0%88%E4%B8%80%E4%B8%AA%E5%BC%B9%E7%AA%97%E5%BC%95%E5%8F%91%E7%9A%84%E5%89%8D%E7%AB%AF%E5%AE%89%E5%85%A8%E9%97%AE%E9%A2%98/" itemprop="url">
+          <h2 class="card-text--title text-ellipsis">浅谈一个弹窗引发的前端安全问题</h2>
+        </a>
+      
+      <div class="card-text--row">Older</div>
+    </div>
+  </article>
+</div>
+          
+        </nav>
+      
 
-      
-      
+      <section class="page-message-container layout-padding">
+        
+
+
+  
+  
+
+  
+  
+
+
+      </section>
     </div>
     <div class="widget-info">
       <section class="widget-author widget-item layout-margin content-padding--primary soft-size--large soft-style--box">
@@ -165,6 +252,8 @@
     </div>
   </div>
 </section>
+
+      
 
       
 <section class="widet-notice widget-item layout-margin content-padding--primary soft-size--large soft-style--box">
@@ -210,7 +299,6 @@
     </div>
   </article>
 </div>
-
 
     <!-- footer container -->
 <footer id="footer" class="footer">
