@@ -22,7 +22,7 @@
 
   
 
-  <title>浅谈一个弹窗引发的前端安全问题 | 积木小站</title>
+  <title>JWT与前端安全（补充 | 积木小站</title>
 
   
 
@@ -96,15 +96,20 @@
     <div class="header-content">
       <div class="post-text layout-block">
         <div class="layout-margin">
-          <h1 class="title-wrap">浅谈一个弹窗引发的前端安全问题</h1>
+          <h1 class="title-wrap">JWT与前端安全（补充</h1>
           <h2 class="title-sub-wrap">
             <strong>jimu</strong>
             <span>发布于</span>
-            <time  class="article-date" datetime="2025-12-03T09:18:44.000Z" itemprop="datePublished">2025-12-03</time>
+            <time  class="article-date" datetime="2025-12-31T08:36:13.000Z" itemprop="datePublished">2025-12-31</time>
           </h2>
           
+            <h2 class="last-time">
+              <span>最后更新于</span>
+              <time  class="article-updated" datetime="2026-01-07T08:48:26.617Z" itemprop="dateUpdated">2026-01-07</time>
+            </h2>
           
-            <h2 id="/2025/12/03/%E6%B5%85%E8%B0%88%E4%B8%80%E4%B8%AA%E5%BC%B9%E7%AA%97%E5%BC%95%E5%8F%91%E7%9A%84%E5%89%8D%E7%AB%AF%E5%AE%89%E5%85%A8%E9%97%AE%E9%A2%98/" class="title-sub-wrap leancloud_visitors" data-flag-title="浅谈一个弹窗引发的前端安全问题">
+          
+            <h2 id="/2025/12/31/JWT%E4%B8%8E%E5%89%8D%E7%AB%AF%E5%AE%89%E5%85%A8%EF%BC%88%E8%A1%A5%E5%85%85/" class="title-sub-wrap leancloud_visitors" data-flag-title="JWT与前端安全（补充">
               <em>文章访问量</em>
               <i class="leancloud-visitors-count"></i>
             </h2>
@@ -136,58 +141,57 @@
       
       
       <section class="article-entry markdown-body layout-margin content-padding--large soft-size--large soft-style--box">
-        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>近期工作中有一个前端弹窗在关闭时，没有及时清空表单字段引发了一段思考；</p>
-<p>设想一下，如果对应的数据没有被清除，数据会一直存储在内存中。长期下来是否会造成内存泄漏？</p>
-<p>又或者如果将一些敏感信息如密码存储在内存中，是否会被dump偷走？</p>
-<p><strong>先说结论，在以前端的思维来看，大部分场景都是用空间换时间&#x2F;体验，即在组件的生命周期内，一般不主动清除数据，而是随着生命周期结束自动清理。</strong></p>
-<p><strong>另外前端安全的核心在于 防止恶意代码执行（CSP、防 XSS） 和 防止网络层窃听（HTTPS），不在于通过缩短变量在内存中的存活时间来防御。</strong></p>
-<h2 id="数据清除时机的最佳实践"><a href="#数据清除时机的最佳实践" class="headerlink" title="数据清除时机的最佳实践"></a>数据清除时机的最佳实践</h2><p>在弹窗关闭的时候就去清除数据，虽然直觉上觉得“用完即走，关掉就清理”很符合逻辑，但在我们的cc工程中，它存在两个明显的痛点：</p>
+        <h2 id="JWT-JSON-Web-Token"><a href="#JWT-JSON-Web-Token" class="headerlink" title="JWT ( JSON Web Token)"></a>JWT ( JSON Web Token)</h2><p><strong>“Token可以放在浏览器的localStorage、请求headers、甚至有时放在请求url里。那么如果黑客截获了我的 Token，是不是就能伪造我的身份？”</strong></p>
+<p><strong>答案确实如此，如果 Token 被截获，黑客确实可以伪造身份。</strong> 但是JWT 的设计初衷和安全机制并非在于“防止被截获”，而在于**“防篡改”<strong>和</strong>“自包含”**。</p>
+<p><strong>自包含</strong></p>
+<p>自包含很好理解，就是服务端通过token就可以从payload中获取必要的信息（用户名、用户id、角色等），不需要额外查询就能知道token这个人是谁</p>
+<p><strong>JWT 如何保证数据不被篡改？</strong></p>
+<p>JWT 的结构分为三部分：<code>Header.Payload.Signature</code>。</p>
 <ul>
-<li><p><strong>视觉体验会有闪烁</strong> </p>
-<p>目前的弹窗组件（ Ant Design Vue）在关闭时有过渡动画。那么在此时调用 <code>form.resetFields()</code>来清空表单数据，会出现数据瞬间闪白被清空（原理是触发了rerender，动画重新执行），然后再关闭弹窗，视觉体验会很差。</p>
+<li><p><strong>Header &amp; Payload</strong>：这两部分其实就是简单的 Base64 编码，没有加密，解码一下就可以看到里面完整的信息。所以不要在这里面去存储明文的密码等敏感信息。而header和payload的区别也很简单，一个存储一些元数据（比如签名方法）。而payload存储一些必要的业务信息。</p>
 </li>
-<li><p><strong>代码健壮性</strong>：</p>
-<p>从代码层考虑，<strong>关闭弹窗</strong>的事件&#x2F;入口有非常多，用户可以通过多种方式关闭弹窗，需要在这些场景都做兼容处理：</p>
-<ul>
-<li>点击“取消”按钮。</li>
-<li>点击右上角的“X”图标。</li>
-<li>键盘esc</li>
-<li>提交成功后自动关闭</li>
-<li>强制刷新浏览器</li>
-<li>电脑死机……</li>
-</ul>
-<p>而我们<strong>打开弹窗</strong>永远只有一个入口，就是某一个比如新增，或者编辑的按钮。</p>
-<p>因此从代码可维护性和健壮性来考虑，在打开弹窗的时候去做初始化弹窗&#x2F;清空状态是更加合适的。</p>
+<li><p><strong>Signature</strong>：这是它是由服务端拿着“私钥（Secret）”对前两部分进行哈希计算生成的。存储的就是最后的计算结果</p>
+<p><img src="/images/image-20251230142431042.png" alt="image-20251230142431042"><strong>所以假设黑客修改了 Payload 里的 <code>role</code>，尝试把自己变成管理员。当服务端收到 Token 时，会用同样的私钥再次计算签名。由于 Payload 变了，计算出的签名肯定和 Token 自带的 Signature 不一致，服务端直接判定非法。</strong></p>
+<p>关于signature签名和验证的详细细节，可自行前往学习：<a target="_blank" rel="noopener" href="https://kucw.io/blog/jwt-signature/">https://kucw.io/blog/jwt-signature/</a></p>
 </li>
 </ul>
-<h2 id="内存泄漏"><a href="#内存泄漏" class="headerlink" title="内存泄漏"></a>内存泄漏</h2><p>首先内存泄漏一定是无法被回收的变量导致的。那么在我们的前端表单数据中，它是依附于一个组件之上的。每个组件都有自己的生命周期，当路由切换、这个组件被销毁。这个组件的所有变量都会被浏览器彻底回收。</p>
-<p>而内存泄漏的真凶应该是一些挂载到全局window的变量、一些没有清除的定时器、一些三方库创建的实例没有及时清除。这里我们先不展开了。</p>
-<p>另外，由于前端的环境是**“一对一”**（一个浏览器只服务一个用户），且运行在用户的终端设备上。所以前端对于内存是比较开放的，只要不是存了几万条列表数据，或者存了 Base64 的高清大图，完全不会有内存泄漏导致崩溃的风险。</p>
-<h2 id="前端安全"><a href="#前端安全" class="headerlink" title="前端安全"></a>前端安全</h2><p>首先在前端安全模型中，<strong>数据的生命周期长短与数据安全性几乎不挂钩</strong>。如果攻击者能够读取用户浏览器的内存堆栈，说明用户的设备环境已经彻底沦陷（如中了木马、操作系统被攻破），此时清空敏感变量也没有任何意义</p>
-<p>换句话说，如果黑客能 Dump 内存，意味着他已经拥有了该设备的最高权限。他完全可以在用户输入密码的瞬间通过记录键盘操作获取，而不需要去内存里找残留。</p>
-<p>而前端最大的威胁其实是跨站脚本攻击（XSS）。如果网站存在漏洞，恶意脚本会在用户输入时直接劫持数据。无论后续是否清空变量，数据在输入的瞬间就已经泄露。</p>
-<p><strong>真正的安全防线：</strong></p>
-<p>前端安全的核心在于 <strong>防止恶意代码执行（CSP、防 XSS）</strong> 和 <strong>防止网络层窃听（HTTPS）</strong></p>
-<p><strong>XSS (Cross-Site Scripting)：</strong></p>
-<p>XSS 攻击的核心是：黑客把一段恶意的 JavaScript 代码“注入”到了你的网页里，让浏览器误以为这是你写的代码，然后执行了它。</p>
-<p><strong>CSP (Content Security Policy)：</strong></p>
-<p>CSP 是浏览器的一种安全机制，用于拦截浏览器执行白名单以外的js脚本</p>
-<ul>
-<li><p><strong>原理：</strong> 在 HTTP 响应头里加一行规则（Whitelist）： <code>Content-Security-Policy: script-src &#39;self&#39; https://apis.google.com</code></p>
-</li>
-<li><p><strong>效果：</strong></p>
-<p>浏览器在加载html后，当解析js文件的时候，只有来自我的域名**（’self’）和 **Google API 的 JS 文件可以运行。</p>
-</li>
-</ul>
-<p><strong>防止网络层窃听</strong></p>
-<p>这里主要就是使用https，将通过网络传输的内容进行加密，这样别人抓包到你的数据后，由于没有私钥，也没有什么用</p>
-<p>其实还有一些网站安全的攻击手段，如CSRF、DDoS，虽然它们不直接和前端有关系，但是前端也可能成为帮凶；我们可以在后续聊到这一个话题</p>
+<p><strong>2. JWT 存储在哪才安全？</strong></p>
+<p>再结合我们前面聊到的前端安全两大威胁XSS 和 CSRF，JWT 应该存在哪？或者说应该怎么正确姿势使用JWT呢</p>
+<table>
+<thead>
+<tr>
+<th>存储位置</th>
+<th>防 CSRF</th>
+<th>防 XSS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cookie</td>
+<td>⚠️配合现代浏览器的一些方案（如SameSite，可防御绝大部分CSRF</td>
+<td>✅（开启HttpOnly）</td>
+</tr>
+<tr>
+<td>localStorage</td>
+<td>✅</td>
+<td>❌ 只要有xss攻击，攻击者就相当于拥有登陆状态</td>
+</tr>
+<tr>
+<td>存内存  + Access Token + Refresh Token</td>
+<td>✅</td>
+<td>⚠️攻击者只能拿到内存中的Access Token，只能在短短10几分钟内的时间发起攻击</td>
+</tr>
+</tbody></table>
+<p><strong>3、双token鉴权机制</strong></p>
+<p><img src="/images/image-20260107163308572.png" alt="image-20260107163308572"></p>
+<p><strong>结论：</strong></p>
+<p> 方案三的双token机制是目前最为完善的解决方案；cookie + 一些简单的方案也可以防止绝大部分的攻击；因此根据自身工程情况进行选择即可。</p>
 
       </section>
 
       
       
         <nav class="article-nav">
+          
           
             <div class="article-nav-item layout-padding">
   <article class="card-container article-nav-card content-padding--primary soft-size--large soft-style--box">
@@ -198,11 +202,10 @@
           <h2 class="card-text--title text-ellipsis">前端序列化的秘密</h2>
         </a>
       
-      <div class="card-text--row">Newer</div>
+      <div class="card-text--row">Older</div>
     </div>
   </article>
 </div>
-          
           
         </nav>
       
